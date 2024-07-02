@@ -1,0 +1,17 @@
+Struktur DB
+
+Users:
+id (serial)
+username (str, 32)
+password (text)
+created-at (timestamp)
+updated-at (timestamp)
+
+Todos:
+id (serial)
+user_id (fk, int, users.id)
+todo (text)
+date (timestamp) [probably date-hour]
+hour (timestamp) [probably date-hour]
+created-at (timestamp)
+updated-at (timestamp)
