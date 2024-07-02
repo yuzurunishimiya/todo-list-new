@@ -37,6 +37,20 @@ def write_db(object_type: Literal["user", "todo", "serial_user", "serial_todo"],
         exit()
 
 
+def ex_todos(todos: List[Dict]) -> List[Dict]:
+    """to restructure todos"""
+
+    structured_todos: List[Dict] = []
+    for todo in todos:
+        structured_todos.append({
+            "id": todo["id"],
+            "todo": todo["content"],
+            "time": todo["timestamp"],
+        })
+
+    return structured_todos
+
+
 def login(username: str, password: str) -> Optional[Dict]:
     """login"""
 
@@ -84,13 +98,13 @@ def menu_todo(user_id: int):
     while True:
         print(
             """
-            ===== ***** =====
-            menu:
-            1. lihat todo list anda
-            2. tambah todo list anda
-            3. edit todo list
-            4. hapus todo list
-            99. keluar
+        ===== ***** =====
+        menu:
+        1. Lihat todo list anda
+        2. Tambah todo list anda
+        3. Edit todo list
+        4. Hapus todo list
+        99. Keluar
             """
         )
         choice = input("pilihan: ")
@@ -98,6 +112,8 @@ def menu_todo(user_id: int):
         if choice == "1":
             todos = read_db("todos")
             user_todo_lists = filter_todo(todos, user_id)
+            user_todo_lists = ex_todos(user_todo_lists)
+
             print("todo-list kamu: ")
             pprint.pprint(user_todo_lists, indent=2)
 
