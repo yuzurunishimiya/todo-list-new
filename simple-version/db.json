@@ -1,0 +1,30 @@
+{
+    "users": [
+        {
+            "id": 1,
+            "username": "yuzuchan",
+            "password": "yuzuchan"
+        },
+        {
+            "id": 2,
+            "username": "yuzuru",
+            "password": "yuzuru"
+        }
+    ],
+    "todos": [
+        {
+            "id": 2,
+            "user_id": 1,
+            "content": "Belajar Bahasa Jepang",
+            "timestamp": "2024-07-03 11:00"
+        },
+        {
+            "id": 4,
+            "user_id": 2,
+            "content": "Main barena hanekawa",
+            "timestamp": "2024-07-02 21:00"
+        }
+    ],
+    "serial_user": 2,
+    "serial_todo": 4
+}
