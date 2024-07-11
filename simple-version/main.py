@@ -204,7 +204,7 @@ class Todo:
                         index_target = index
                         break
 
-                if target is None or todo["user_id"] != user_id:
+                if target is None or target["user_id"] != user_id:
                     print("id target tidak ditemukkan")
                 else:
                     todos.pop(index_target)
@@ -217,6 +217,8 @@ class Todo:
 
 
 class Main:
+    """k"""
+
     def __init__(self) -> None:
         db_file = "db.json"
         self.__db = DB(db_file)
