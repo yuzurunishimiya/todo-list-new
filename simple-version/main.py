@@ -1,218 +1,234 @@
 """basic version of to-do list"""
 
-from typing import List, Dict
-from typing import Optional, Literal, Union
+from typing import Any, List, Dict
+from typing import Optional
 
 import json
 import pprint
 
-
-def read_db(table: str):
-    """read db file"""
-
-    with open("db.json", "r") as f:
-        data: dict = json.loads(f.read())
-        return data.get(table)
+from security import hash_text, verify_hashed
 
 
-def write_db(object_type: Literal["user", "todo", "serial_user", "serial_todo"], data: Union[List[Dict], int]):
-    """overwrite to db"""
-
-    obj = {
-        "user": "users",
-        "todo": "todos",
-        "serial_user": "serial_user",
-        "serial_todo": "serial_todo",
-    }
-
-    if object_type in obj:
-        db_data = None
-        with open("db.json", "r") as f:
-            db_data = json.loads(f.read())
-        with open("db.json", "w") as f:
-            db_data[obj[object_type]] = data
-            f.write(json.dumps(db_data, indent=4))
-    else:
-        print(f"expected error occured, write db object type: {object_type}")
-        exit()
+DB_Tables = {
+    "users",
+    "todos",
+    "serial_user",
+    "serial_todo",
+}
 
 
-def ex_todos(todos: List[Dict]) -> List[Dict]:
-    """to restructure todos"""
+class DB:
+    """DB's class"""
 
-    structured_todos: List[Dict] = []
-    for todo in todos:
-        structured_todos.append({
-            "id": todo["id"],
-            "todo": todo["content"],
-            "time": todo["timestamp"],
-        })
+    def __init__(self, db_file: str) -> None:
+        """initialize class fields"""
 
-    return structured_todos
+        self.__db_file = db_file
 
+    def read(self, table: str = None) -> Optional[Any]:
+        """read db file"""
 
-def login(username: str, password: str) -> Optional[Dict]:
-    """login"""
+        with open(self.__db_file, "r", encoding="utf-8") as f:
+            data: dict = json.loads(f.read())
+            if table:
+                return data.get(table)
 
-    data: List[Dict] = read_db("users")
-    user = None
-    for u in data:
-        if u["username"] == username:
-            user = u
-            break
-    else:
-        return
+            return data
 
-    if user["password"] == password:
-        return u
+    def write(self, object_type: str, data: Any) -> None:
+        """overwrite to db"""
 
+        if object_type in DB_Tables:
+            db_data = self.read()
 
-def menu_login():
-    """login menu"""
-
-    user = None
-    print("Login !")
-
-    while user is None:
-        username = input("username: ")
-        password = input("password: ")
-        user = login(username, password)
-        if user is None:
-            print("Username atau password salah! Ulangi")
-
-    return user
+            with open(self.__db_file, "w", encoding="utf-8") as f:
+                db_data[object_type] = data
+                f.write(json.dumps(db_data, indent=4))
 
 
-def filter_todo(todos: List[Dict], user_id: int):
-    """get todos by user"""
-    user_todo_lists = []
-    for todo in todos:
-        if todo["user_id"] == user_id:
-            user_todo_lists.append(todo)
+class Auth:
+    """main's class"""
 
-    return user_todo_lists
+    def __init__(self, db: DB) -> None:
+        self.__db = db
 
-def menu_todo(user_id: int):
-    """get user's todo list"""
+    def sign_up(self) -> None:
+        """daftar"""
 
-    while True:
-        print(
-            """
-        ===== ***** =====
-        menu:
-        1. Lihat todo list anda
-        2. Tambah todo list anda
-        3. Edit todo list
-        4. Hapus todo list
-        99. Keluar
-            """
-        )
-        choice = input("pilihan: ")
+        users: List[Dict] = self.__db.read("users")
+        new_id: int = self.__db.read("serial_user") + 1
 
-        if choice == "1":
-            todos = read_db("todos")
-            user_todo_lists = filter_todo(todos, user_id)
-            user_todo_lists = ex_todos(user_todo_lists)
+        while True:
+            username = input("username baru: ")
+            password = input("password baru: ")
 
-            print("todo-list kamu: ")
-            pprint.pprint(user_todo_lists, indent=2)
-
-        elif choice == "2":
-            todos: List[Dict] = read_db("todos")
-            todo_max_id: int = read_db("serial_todo") + 1
-
-            new_content = input("input konten: ")
-            new_time = input("input tanggal [format: yyyy-mm-dd hh:mm]: ")
-            new_todo = {"id": todo_max_id, "user_id": user_id, "content": new_content, "timestamp": new_time}
-
-            todos.append(new_todo)
-            write_db("todo", todos)
-            write_db("serial_todo", todo_max_id)
-            print("Selamat! todo sudah ditambahkan!", end="\n\n")
-
-        elif choice == "3":
-            id_target = int(input("silahkan masukkan id todolist yang akan diedit: "))
-            target = None
-
-            todos = read_db("todos")
-            for todo in todos:
-                if todo["id"] == id_target:
-                    target = todo
-
-            if target is None or target["user_id"] != user_id:
-                print("id target tidak ditemukan")
-            else:
-                print(
-                    """
-                    Silahkan kosongkan(jangan diisi) apabila anda tidak ingin mengubahnya
-                    Apabila kosong, maka akan diisi dengan konten atau waktu sebelumnya.
-                    """
-                )
-                new_content = input("konten baru: ")
-                new_time = input("input tanggal baru [format: yyyy-mm-dd hh:mm]: ")
-
-                if new_content or new_time:
-                    if new_content:
-                        todo["content"] = new_content
-                    if new_time:
-                        todo["timestamp"] = new_time
-
-                    write_db("todo", todos)
-                    print("data todo sudah diupdate")
-
-        elif choice == "4":
-            id_target = int(input("silahkan masukan id todolist yang akan kamu hapus: "))
-            target = None
-            index_target = None
-
-            todos = read_db("todos")
-            for index, todo in enumerate(todos):
-                if todo["id"] == id_target:
-                    target = todo
-                    index_target = index
+            for user in users:
+                if user["username"] == username:
+                    print("username sudah digunakan, silahkan gunakan username lain!")
                     break
-
-            if target is None:
-                print("id target tidak ditemukkan")
             else:
-                todos.pop(index_target)
-                write_db("todo", todos)
-                print("data todo sudah dihapus")
-
-        elif choice == "99":
-            print("exiting....!")
-            exit()
-
-
-def menu_daftar():
-    """daftar"""
-
-    users: List[Dict] = read_db("users")
-    new_id: int = read_db("serial_user") + 1
-
-    while True:
-        username = input("username baru: ")
-        password = input("password baru: ")
-
-        for user in users:
-            if user["username"] == username:
-                print("username sudah digunakan, silahkan gunakan username lain!")
+                new_user = {"id": new_id, "username": username, "password": hash_text(password)}
+                users.append(new_user)
+                self.__db.write("users", data=users)
+                self.__db.write("serial_user", data=new_id)
+                print(
+                    "Sign-up berhasil, silahkan login untuk melanjutkan; ",
+                    "username anda: " + username)
                 break
-        else:
-            new_user = {"id": new_id, "username": username, "password": password}
-            users.append(new_user)
-            write_db("user", data=users)
-            write_db("serial_user", data=new_id)
-            print("User telah terdaftar, silahkan login")
-            break
+
+    def login(self, username: str, password: str) -> Optional[Any]:
+        """login"""
+
+        users: List[Dict[str, Any]] = self.__db.read("users")
+        user: Dict[str, Any] = {}
+        for u in users:
+            if u["username"] == username:
+                user = u
+                break
+
+        if user.get("password"):
+            hashed = user["password"]
+            if not verify_hashed(password, hashed):
+                user = None
+
+        return user
 
 
-def main():
-    """main"""
+class Todo:
+    """todo's class"""
 
-    user = None
-    while user is None:
-        print(
+    def __init__(self, db: DB) -> None:
+
+        self.__db = db
+
+    @staticmethod
+    def _filter_todo(todos: List[Dict], user_id: int):
+        """get todos by user"""
+        user_todo_lists = []
+        for todo in todos:
+            if todo["user_id"] == user_id:
+                user_todo_lists.append(todo)
+
+        return user_todo_lists
+
+
+    def todo(self, user_id: int):
+        """get user's todo list"""
+
+        while True:
+            print(
+                """
+            ===== ***** =====
+            menu:
+            1. Lihat todo list anda
+            2. Tambah todo list anda
+            3. Edit todo list
+            4. Hapus todo list
+            99. Keluar
+                """
+            )
+            choice = input("pilihan: ")
+
+            if choice == "1":
+                todos = self.__db.read("todos")
+                user_todo_list = self._filter_todo(todos, user_id)
+                user_todo_list = [
+                    {
+                        "id": todo["id"],
+                        "todo": todo["content"],
+                        "time": todo["timestamp"],
+                    } for todo in user_todo_list
+                ]
+
+                print("todo-list kamu: ")
+                pprint.pprint(user_todo_list, indent=2)
+
+            elif choice == "2":
+                todos: List[Dict] = self.__db.read("todos")
+                todo_max_id: int = self.__db.read("serial_todo") + 1
+
+                new_content = input("input konten: ")
+                new_time = input("input tanggal [format: yyyy-mm-dd hh:mm]: ")
+                new_todo = {
+                    "id": todo_max_id,
+                    "user_id": user_id,
+                    "content": new_content,
+                    "timestamp": new_time,
+                }
+
+                todos.append(new_todo)
+                self.__db.write("todos", todos)
+                self.__db.write("serial_todo", todo_max_id)
+                print("Selamat! todo sudah ditambahkan!", end="\n\n")
+
+            elif choice == "3":
+                id_target = int(input("silahkan masukkan id todolist yang akan diedit: "))
+                target = None
+
+                todos = self.__db.read("todos")
+                for todo in todos:
+                    if todo["id"] == id_target:
+                        target = todo
+                        break
+
+                if target is None or target["user_id"] != user_id:
+                    print("id target tidak ditemukan")
+                else:
+                    print(
+                        """
+                        Silahkan kosongkan(jangan diisi) apabila anda tidak ingin mengubahnya
+                        Apabila kosong, maka akan diisi dengan konten atau waktu sebelumnya.
+                        """
+                    )
+                    new_content = input("konten baru: ")
+                    new_time = input("input tanggal baru [format: yyyy-mm-dd hh:mm]: ")
+
+                    if new_content or new_time:
+                        if new_content:
+                            target["content"] = new_content
+                        if new_time:
+                            target["timestamp"] = new_time
+
+                        self.__db.write("todos", todos)
+                        print("data todo sudah diupdate")
+
+            elif choice == "4":
+                id_target = int(input("silahkan masukan id todolist yang akan kamu hapus: "))
+                target = None
+                index_target = None
+
+                todos = self.__db.read("todos")
+                for index, todo in enumerate(todos):
+                    if todo["id"] == id_target:
+                        target = todo
+                        index_target = index
+                        break
+
+                if target is None or todo["user_id"] != user_id:
+                    print("id target tidak ditemukkan")
+                else:
+                    todos.pop(index_target)
+                    self.__db.write("todos", todos)
+                    print("data todo sudah dihapus")
+
+            elif choice == "99":
+                print("exiting....!")
+                exit()
+
+
+class Main:
+    def __init__(self) -> None:
+        db_file = "db.json"
+        self.__db = DB(db_file)
+        self.__todo = Todo(self.__db)
+        self.__auth = Auth(self.__db)
+
+    def run(self):
+        """run app"""
+
+        user = None
+        while user is None:
+            print(
             """
         Selamat datang!
         Silahkan pilih menu:
@@ -220,19 +236,30 @@ def main():
         2. Daftar
         99. Keluar
             """
-        )
+                )
 
-        choice = input("pilihan kamu: ")
-        if choice == "1":
-            user = menu_login()
-        elif choice == "2":
-            menu_daftar()
-        elif choice == "99":
-            print("exiting...")
-            exit()
+            choice = input("pilihan kamu: ")
+            if choice == "1":
+                while user is None:
+                    username = input("username: ")
+                    password = input("password: ")
+                    user = self.__auth.login(username, password)
+                    if user is None:
+                        print("username atau password salah, silahkan ulangi")
+                        break_key = input("input 0 untuk kembali ke menu utama: ")
+                        if break_key == "0":
+                            break
 
-    menu_todo(user_id=user["id"])
+            elif choice == "2":
+                self.__auth.sign_up()
+
+            elif choice == "99":
+                print("exiting...")
+                exit()
+
+        self.__todo.todo(user_id=user)
 
 
 if __name__ == "__main__":
-    main()
+    app = Main()
+    app.run()
